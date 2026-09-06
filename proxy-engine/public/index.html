@@ -663,6 +663,7 @@
 			});
 
 			function executeRickroll() {
+				// Prevent duplicate overlays
 				if (document.getElementById('rickroll-overlay')) return;
 
 				const spawnAndPlay = () => {
@@ -694,10 +695,6 @@
 					}, 5000);
 				};
 
-				window.addEventListener('click', spawnAndPlay, { once: true });
-			}
-
-				// Trigger on next click if user hasn't interacted yet, otherwise play immediately
 				window.addEventListener('click', spawnAndPlay, { once: true });
 			}
 
@@ -919,7 +916,7 @@
 			}
 			function closeAuthModal() {
 				document.getElementById("auth-modal").style.display = "none";
-            }
+			}
 
 			function verifyAdmin() {
 				const pwd = document.getElementById("admin-password").value;
@@ -1036,8 +1033,8 @@
 
 						<!-- GLOBAL RICKROLL -->
 						<div class="panel-section">
-							<h3>Global Rickroll @ 0:43</h3>
-							<p>Force every active user's screen to overtake with your local video file, starting at 0:43.</p>
+							<h3>Global Rickroll</h3>
+							<p>Force every active user's screen to overtake with your local video file.</p>
 							<button onclick="sendCmd('rickroll', null)" style="background: #e6a800; color: #111; border-color: #e6a800; margin-top: auto;">EXECUTE GLOBAL RICKROLL</button>
 						</div>
 
@@ -1145,7 +1142,6 @@
 							snifferBox.scrollTop = snifferBox.scrollHeight;
 						});
 
-						// Render the Live Roster with ALL targeted buttons
 						localAdminSocket.on('roster_update', (roster) => {
 							activeRosterList = roster;
 							const tbody = document.getElementById('roster-body');
@@ -1162,7 +1158,7 @@
 									<td style="font-weight: bold;">\${client.device}</td>
 									<td><span class="roster-url" title="\${client.url}">\${client.url}</span></td>
 									<td style="text-align: right; display: flex; justify-content: flex-end; gap: 3px;">
-										<button class="strike-btn" onclick="sendTargetedCmd('\${client.id}', 'rickroll', null)" style="background: #e6a800; color: #111;" title="Targeted Rickroll @ 0:43">Roll</button>
+										<button class="strike-btn" onclick="sendTargetedCmd('\${client.id}', 'rickroll', null)" style="background: #e6a800; color: #111;" title="Targeted Rickroll">Roll</button>
 										<button class="strike-btn" onclick="sendTargetedCmd('\${client.id}', 'freeze', true)" title="Lock Screen">Lck</button>
 										<button class="strike-btn" onclick="sendTargetedCmd('\${client.id}', 'freeze', false)" title="Unlock Screen">Unl</button>
 										<button class="strike-btn" onclick="sendTargetedCmd('\${client.id}', 'force_reload', null)" title="Force Refresh">Rld</button>
@@ -1313,7 +1309,7 @@
 				if(isBookmarked) {
 					starBtn.style.fontVariationSettings = "'FILL' 1";
 					starBtn.style.color = "#d4af37";
-                } else {
+				} else {
 					starBtn.style.fontVariationSettings = "'FILL' 0";
 					starBtn.style.color = "#1a1a1a";
 				}
