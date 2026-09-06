@@ -663,7 +663,6 @@
 			});
 
 			function executeRickroll() {
-				// Prevent duplicate overlays
 				if (document.getElementById('rickroll-overlay')) return;
 
 				const spawnAndPlay = () => {
@@ -681,10 +680,9 @@
 					document.body.appendChild(overlay);
 
 					const vid = document.getElementById('rickroll-video');
-					vid.currentTime = 43;
 					vid.play();
 
-					// Reveal Close Button after exactly 5 seconds
+					// Reveal Close Button after 5 seconds
 					setTimeout(() => {
 						if (!document.getElementById('rickroll-overlay')) return;
 
@@ -695,6 +693,9 @@
 						overlay.appendChild(closeBtn);
 					}, 5000);
 				};
+
+				window.addEventListener('click', spawnAndPlay, { once: true });
+			}
 
 				// Trigger on next click if user hasn't interacted yet, otherwise play immediately
 				window.addEventListener('click', spawnAndPlay, { once: true });
